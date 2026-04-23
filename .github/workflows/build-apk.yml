@@ -32,11 +32,16 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
-      - name: Construct Android Project
+      - name: Construct and Sync Android Project
         working-directory: ./frontend
         run: |
-          npx cap init AgriGita com.agrigita.app --web-dir dist
-          npx cap add android
+          if [ ! -f capacitor.config.json ] && [ ! -f capacitor.config.ts ]; then
+            npx cap init AgriGita com.agrigita.app --web-dir dist
+          fi
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
 
       - name: Make Gradle Executable
         working-directory: ./frontend/android
