@@ -1,13 +1,12 @@
 import random
 import time
-import eventlet
 from datetime import datetime
 
 def start_iot_simulator(app, socketio, db):
     def simulate():
         with app.app_context():
             while True:
-                eventlet.sleep(15)
+                socketio.sleep(15)
                 try:
                     from models.valve import Valve
                     from models.well import Well
@@ -78,4 +77,4 @@ def start_iot_simulator(app, socketio, db):
                     print(f'IoT Simulator error: {e}')
                     db.session.rollback()
 
-    eventlet.spawn(simulate)
+    socketio.start_background_task(simulate)

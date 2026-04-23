@@ -1,6 +1,3 @@
-import eventlet
-eventlet.monkey_patch()
-
 from flask import Flask, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from config import Config
