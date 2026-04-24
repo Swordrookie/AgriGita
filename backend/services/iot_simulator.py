@@ -1,9 +1,13 @@
 import random
 import time
 from datetime import datetime
+import urllib.request
+import json
 
 def start_iot_simulator(app, socketio, db):
     def simulate():
+        last_weather_check = 0
+        last_weather_state = 'normal'
         with app.app_context():
             while True:
                 socketio.sleep(15)
@@ -71,6 +75,59 @@ def start_iot_simulator(app, socketio, db):
                     for well in wells:
                         change = random.uniform(-0.5, 0.3)
                         well.water_level = max(0, min(well.depth, well.water_level + change))
+
+                    # Weather-based Smart Notification Logic
+                    current_time = time.time()
+                    if current_time - last_weather_check > 60:
+                        last_weather_check = current_time
+                        try:
+                            # Using a default static coordinate for the farm (or first valve)
+                            farm_lat, farm_lng = 20.5937, 78.9629
+                            first_valve = Valve.query.first()
+                            if first_valve:
+                                farm_lat, farm_lng = first_valve.latitude, first_valve.longitude
+                                
+                            req = urllib.request.urlopen(f"https://api.open-meteo.com/v1/forecast?latitude={farm_lat}&longitude={farm_lng}&current_weather=true", timeout=5)
+                            data = json.loads(req.read().decode('utf-8'))
+                            current = data.get('current_weather', {})
+                            temp = current.get('temperature', 20)
+                            code = current.get('weathercode', 0)
+
+                            current_state = 'normal'
+                            if code >= 50: current_state = 'raining'
+                            elif temp > 35: current_state = 'hot'
+
+                            if current_state != last_weather_state:
+                                # Weather state changed, assess all users and valves
+                                users_needing_alerts = set()
+                                for v in Valve.query.all():
+                                    if current_state == 'raining' and v.status == True:
+                                        users_needing_alerts.add(v.user_id)
+                                    elif current_state == 'hot' and v.status == False and v.health != 'damaged':
+                                        users_needing_alerts.add(v.user_id)
+
+                                for uid in users_needing_alerts:
+                                    if current_state == 'raining':
+                                        msg = "🌧️ Heavy rain detected on the farm! Consider closing all active valves to conserve water and prevent over-saturation."
+                                        severity = 'info'
+                                    else:
+                                        msg = f"🔥 Extreme heat warning ({temp}°C). Consider opening valves to prevent rapid crop dehydration."
+                                        severity = 'warning'
+                                        
+                                    w_alert = Alert(
+                                        user_id=uid,
+                                        type='weather_system',
+                                        severity=severity,
+                                        message=msg,
+                                        metadata_json='{"source": "Open-Meteo Autonomous"}'
+                                    )
+                                    db.session.add(w_alert)
+                                    socketio.emit('new_alert', {'alert': w_alert.to_dict()}, room=f'user_{uid}')
+
+                                last_weather_state = current_state
+
+                        except Exception as w_e:
+                            print(f'Weather check failed: {w_e}')
 
                     db.session.commit()
                 except Exception as e:

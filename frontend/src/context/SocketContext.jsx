@@ -19,7 +19,8 @@ export function SocketProvider({ children }) {
       return
     }
 
-    const s = io('/', {
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || '/'
+    const s = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 10,

@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from '
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { valveAPI, wellAPI, pipelineAPI } from '../api/services'
+import WeatherWidget from '../components/WeatherWidget'
 
 // Fix leaflet icon issue in Vite
 delete L.Icon.Default.prototype._getIconUrl
@@ -36,10 +37,11 @@ const createSuggestionIcon = () => L.divIcon({
   iconAnchor: [15, 15],
 })
 
-function MapClickHandler({ mode, onMapClick, onMouseMove }) {
-  useMapEvents({ 
+function MapEventsHandler({ mode, onMapClick, onMouseMove, onMapMove }) {
+  const map = useMapEvents({ 
     click: (e) => { if (mode !== 'none') onMapClick(e.latlng) },
-    mousemove: (e) => { if (mode === 'draw-pipeline') onMouseMove(e.latlng) }
+    mousemove: (e) => { if (mode === 'draw-pipeline') onMouseMove(e.latlng) },
+    moveend: () => { onMapMove(map.getCenter()) }
   })
   return null
 }
@@ -59,6 +61,7 @@ export default function MapView() {
   const [mousePos, setMousePos] = useState(null)
   const [newName, setNewName] = useState('')
   const [toast, setToast] = useState('')
+  const [activeCenter, setActiveCenter] = useState(null)
 
   useEffect(() => {
     Promise.all([valveAPI.getAll(), wellAPI.getAll(), pipelineAPI.getAll()]).then(([v, w, p]) => {
@@ -139,6 +142,8 @@ export default function MapView() {
     : wells[0] ? [wells[0].latitude, wells[0].longitude]
     : [20.5937, 78.9629]
 
+  const displayCenter = activeCenter || { lat: center[0], lng: center[1] }
+
   const modeLabels = { none: 'View Mode', 'add-valve': '📍 Click map to place valve', 'add-well': '💧 Click map to place well', 'draw-pipeline': '✏️ Click to draw pipeline points' }
 
   if (loading) return <div className="loading-container"><div className="loading-spinner" /></div>
@@ -192,13 +197,14 @@ export default function MapView() {
         ))}
       </div>
 
-      <div className="map-container">
-        <MapContainer center={center} zoom={16} style={{ height: '100%', width: '100%' }}>
+      <div className="map-container" style={{ position: 'relative' }}>
+        <WeatherWidget lat={displayCenter.lat} lng={displayCenter.lng} />
+        <MapContainer center={center} zoom={16} style={{ height: '100%', width: '100%', zIndex: 1 }}>
           <TileLayer
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
           />
-          <MapClickHandler mode={mode} onMapClick={handleMapClick} onMouseMove={handleMouseMove} />
+          <MapEventsHandler mode={mode} onMapClick={handleMapClick} onMouseMove={handleMouseMove} onMapMove={setActiveCenter} />
 
           {valves.map(valve => (
             <Marker key={`v-${valve.id}`} position={[valve.latitude, valve.longitude]} icon={createValveIcon(valve.status, valve.health)}>
