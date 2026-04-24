@@ -14,6 +14,7 @@ import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import LoginSuccess from './pages/LoginSuccess'
 import AdminDashboard from './pages/Admin'
+import { Toaster } from 'react-hot-toast'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -23,23 +24,34 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/success" element={<LoginSuccess />} />
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route index element={<Dashboard />} />
-        <Route path="valves" element={<Valves />} />
-        <Route path="wells" element={<Wells />} />
-        <Route path="map" element={<MapView />} />
-        <Route path="pipelines" element={<Pipelines />} />
-        <Route path="alerts" element={<Alerts />} />
-        <Route path="ai" element={<AISuggestions />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="admin" element={<AdminDashboard />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+    <>
+      <Toaster position="top-right" toastOptions={{
+        style: {
+          background: 'rgba(30, 30, 40, 0.85)',
+          color: '#fff',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.3)'
+        }
+      }} />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/success" element={<LoginSuccess />} />
+        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route index element={<Dashboard />} />
+          <Route path="valves" element={<Valves />} />
+          <Route path="wells" element={<Wells />} />
+          <Route path="map" element={<MapView />} />
+          <Route path="pipelines" element={<Pipelines />} />
+          <Route path="alerts" element={<Alerts />} />
+          <Route path="ai" element={<AISuggestions />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="admin" element={<AdminDashboard />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </>
   )
 }

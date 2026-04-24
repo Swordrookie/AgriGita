@@ -8,6 +8,8 @@ def start_iot_simulator(app, socketio, db):
     def simulate():
         last_weather_check = 0
         last_weather_state = 'normal'
+        virtual_soil_moisture = {}
+
         with app.app_context():
             while True:
                 socketio.sleep(15)
@@ -18,25 +20,46 @@ def start_iot_simulator(app, socketio, db):
                     from models.water_log import WaterLog
                     from models.user import User
 
-                    active_valves = Valve.query.filter_by(status=True).all()
-                    for valve in active_valves:
-                        valve.flow_rate = round(random.uniform(5.0, 25.0), 2)
-                        log = WaterLog(
-                            valve_id=valve.id,
-                            flow_rate=valve.flow_rate,
-                            duration=15.0,
-                            volume=round(valve.flow_rate * 0.25, 2)
-                        )
-                        db.session.add(log)
+                    all_valves = Valve.query.all()
+                    total_water_used_cycle = 0.0
+
+                    for valve in all_valves:
+                        # 1. Biological Soil Moisture & Flow Simulation
+                        if valve.status == True:
+                            valve.flow_rate = round(random.uniform(5.0, 25.0), 2)
+                            volume = round(valve.flow_rate * 0.25, 2)
+                            log = WaterLog(valve_id=valve.id, flow_rate=valve.flow_rate, duration=15.0, volume=volume)
+                            db.session.add(log)
+                            total_water_used_cycle += volume
+
+                            # Rehydrating Soil
+                            sm = virtual_soil_moisture.get(valve.id, 50.0)
+                            virtual_soil_moisture[valve.id] = min(100.0, sm + (valve.flow_rate * 0.2))
+                        else:
+                            valve.flow_rate = 0.0
+                            # Dehydrating Soil
+                            decay = 1.3 if last_weather_state == 'hot' else 0.4
+                            if last_weather_state == 'raining': decay = -1.2 # Rain rehydrates
+                            sm = virtual_soil_moisture.get(valve.id, 50.0)
+                            virtual_soil_moisture[valve.id] = max(0.0, min(100.0, sm - decay))
+
+                            # Urgent biological alert trigger
+                            if virtual_soil_moisture[valve.id] < 15.0 and sm >= 15.0 and last_weather_state == 'hot':
+                                alert = Alert(user_id=valve.user_id, type='critical_health', severity='critical',
+                                    message=f'☠️ Soil moisture critically low (15%) at "{valve.name}". Crop dehydration imminent!',
+                                    metadata_json=f'{{"valve_id": {valve.id}}}')
+                                db.session.add(alert)
+                                socketio.emit('new_alert', {'alert': alert.to_dict()}, room=f'user_{valve.user_id}')
+
+                        # Emit live data bundle to React UI
                         socketio.emit('valve_data', {
                             'valve_id': valve.id,
                             'flow_rate': valve.flow_rate,
+                            'soil_moisture': round(virtual_soil_moisture[valve.id], 1),
                             'timestamp': datetime.utcnow().isoformat()
                         }, room=f'user_{valve.user_id}')
 
-                    # Random fault simulation (2% chance per cycle)
-                    all_valves = Valve.query.all()
-                    for valve in all_valves:
+                        # 2. Random Mechanical Fault Simulation (2% chance)
                         if random.random() < 0.02 and valve.health != 'damaged':
                             fault_type = random.choice(['valve_failure', 'pipeline_damage', 'low_pressure'])
                             messages = {
@@ -71,10 +94,25 @@ def start_iot_simulator(app, socketio, db):
                                 print(f"Subject: Farm Alert - {severity.upper()}")
                                 print(f"Body: {messages[fault_type]}\n")
 
+                    # 3. Closed-Loop Water Scarcity Engine
                     wells = Well.query.all()
                     for well in wells:
-                        change = random.uniform(-0.5, 0.3)
-                        well.water_level = max(0, min(well.depth, well.water_level + change))
+                        random_variance = random.uniform(-0.1, 0.1) if last_weather_state != 'raining' else random.uniform(0.1, 0.5)
+                        physical_drain = (total_water_used_cycle / 1000.0) # Mapping total L used to generic depth drops
+                        new_level = well.water_level + random_variance - physical_drain
+                        well.water_level = max(0.0, min(well.depth, new_level))
+
+                        if well.water_level <= 0.0:
+                            # 🚨 System Failsafe: Shut down all valves to prevent burnout
+                            for v in all_valves:
+                                if v.user_id == well.user_id and v.status == True:
+                                    v.status = False
+                                    v.flow_rate = 0.0
+                                    alert = Alert(user_id=v.user_id, type='empty_well', severity='critical',
+                                        message=f'🛑 {well.name} ran completely dry! Emergency pump isolation triggered for "{v.name}" to prevent motor burnout.',
+                                        metadata_json=f'{{"well_id": {well.id}}}')
+                                    db.session.add(alert)
+                                    socketio.emit('new_alert', {'alert': alert.to_dict()}, room=f'user_{v.user_id}')
 
                     # Weather-based Smart Notification Logic
                     current_time = time.time()
