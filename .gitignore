@@ -1,0 +1,27 @@
+# Node & JavaScript
+node_modules/
+npm-debug.log
+yarn-error.log
+.eslintcache
+/frontend/dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+ENV/
+.env
+.venv/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Android Build
+/frontend/android/
+*.apk
