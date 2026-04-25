@@ -56,10 +56,12 @@ export function SocketProvider({ children }) {
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL || '/'
     const s = io(socketUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'], // Force WebSocket (skip slow polling handshake)
+      upgrade: false,
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1000,
+      timeout: 10000,
     })
 
     s.on('connect', () => {

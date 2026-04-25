@@ -23,11 +23,17 @@ export default function Layout() {
   }
 
   useEffect(() => {
-    alertAPI.getUnreadCount().then(r => setUnreadCount(r.data.unread_count)).catch(() => {})
-    const interval = setInterval(() => {
-      alertAPI.getUnreadCount().then(r => setUnreadCount(r.data.unread_count)).catch(() => {})
-    }, 10000)
-    return () => clearInterval(interval)
+    const fetchUnread = () => alertAPI.getUnreadCount().then(r => setUnreadCount(r.data.unread_count)).catch(() => {})
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 10000)
+    
+    const handleAlertsRead = () => setUnreadCount(0)
+    window.addEventListener('alerts_read', handleAlertsRead)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('alerts_read', handleAlertsRead)
+    }
   }, [])
 
   useEffect(() => {

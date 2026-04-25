@@ -54,7 +54,20 @@ export default function Alerts() {
   const fetchAlerts = async () => {
     try {
       const res = await alertAPI.getAll()
-      setAlerts(res.data.alerts)
+      const fetchedAlerts = res.data.alerts
+      setAlerts(fetchedAlerts)
+
+      // Auto-mark as read after 1.5 seconds so user sees what was unread
+      if (fetchedAlerts.some(a => !a.is_read)) {
+        setTimeout(async () => {
+          try {
+            await alertAPI.markAllRead()
+            setAlerts(prev => prev.map(a => ({ ...a, is_read: true })))
+            window.dispatchEvent(new Event('alerts_read'))
+          } catch(e) {}
+        }, 1500)
+      }
+
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
@@ -79,6 +92,7 @@ export default function Alerts() {
     try {
       await alertAPI.markAllRead()
       setAlerts(prev => prev.map(a => ({ ...a, is_read: true })))
+      window.dispatchEvent(new Event('alerts_read'))
     } catch (err) {}
   }
 
