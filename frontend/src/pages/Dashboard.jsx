@@ -138,10 +138,11 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-        <div className="chart-card" style={{ gridColumn: 'span 2' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px' }}>
+        {/* Water Usage Chart */}
+        <div className="chart-card">
           <div className="chart-title">{t('water_usage_chart')}</div>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={stats?.water_by_day || []}>
               <defs>
                 <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
@@ -150,41 +151,43 @@ export default function Dashboard() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={{ stroke: 'rgba(255,255,255,0.05)' }} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={{ stroke: 'rgba(255,255,255,0.05)' }} />
+              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.05)' }} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.05)' }} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="volume" stroke="#06b6d4" strokeWidth={2.5} fill="url(#waterGradient)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
+        {/* Local Field Weather */}
         <div className="chart-card">
           <div className="chart-title">🌦️ Local Field Weather</div>
           {weather ? (
-            <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
-                <img src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@2x.png`} alt="weather" 
-                     style={{ width: '64px', height: '64px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
+            <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@2x.png`} alt="weather"
+                     style={{ width: '60px', height: '60px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
                 <div>
                   <div style={{ fontSize: '2rem', fontWeight: 800 }}>{Math.round(weather.main.temp)}°C</div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
-                    {weather.weather[0].description} {weather.simulated && <span style={{ fontSize: '0.6rem', background: 'var(--accent-amber-glow)', color: 'var(--accent-amber)', padding: '2px 6px', borderRadius: '4px', marginLeft: '4px' }}>SIMULATED</span>}
+                    {weather.weather[0].description}
+                    {weather.simulated && <span style={{ fontSize: '0.6rem', background: 'var(--accent-amber-glow)', color: 'var(--accent-amber)', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>SIMULATED</span>}
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Humidity</div>
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Humidity</div>
                   <div style={{ fontSize: '1rem', fontWeight: 600 }}>{weather.main.humidity}%</div>
                 </div>
-                <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Wind Speed</div>
+                <div style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Wind</div>
                   <div style={{ fontSize: '1rem', fontWeight: 600 }}>{weather.wind.speed} m/s</div>
                 </div>
               </div>
               {weather.main.temp > 30 && (
-                <div style={{ marginTop: '16px', fontSize: '0.75rem', color: 'var(--accent-amber)', background: 'var(--accent-amber-glow)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.2)' }}>
-                  ⚠️ High temp detected. Increasing evaporation.
+                <div style={{ width: '100%', fontSize: '0.75rem', color: 'var(--accent-amber)', background: 'var(--accent-amber-glow)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                  ⚠️ High temp detected. Increasing evaporation rate.
                 </div>
               )}
             </div>

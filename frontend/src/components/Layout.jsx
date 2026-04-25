@@ -78,9 +78,15 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
+      {/* Mobile overlay - click to close sidebar */}
+      {sidebarOpen && (
+        <div onClick={() => setSidebarOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99, backdropFilter: 'blur(2px)' }} />
+      )}
+
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <img src="/logo.png" alt="AgriGita Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+          <img src="/logo.png" alt="AgriGita Logo" style={{ width: '36px', height: '36px', objectFit: 'contain', flexShrink: 0 }} />
           <div className="sidebar-brand-text">
             <h1>AgriGita</h1>
             <span>Smart Agriculture</span>
@@ -112,20 +118,20 @@ export default function Layout() {
 
         <div className="sidebar-footer">
           <div className="sidebar-user" onClick={handleLogout} title="Click to logout">
-            <div className="sidebar-user-avatar" style={{ overflow: 'hidden' }}>
+            <div className="sidebar-user-avatar" style={{ overflow: 'hidden', flexShrink: 0 }}>
               {user?.profile_image ? (
                 <img src={user.profile_image} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 initials
               )}
             </div>
-            <div className="sidebar-user-info">
-              <div className="name">{user?.full_name || user?.username}</div>
+            <div className="sidebar-user-info" style={{ overflow: 'hidden' }}>
+              <div className="name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.full_name || user?.username}</div>
               <div className="role">
                 {connected ? '🟢 Online' : '🔴 Offline'}
               </div>
             </div>
-            <span style={{ fontSize: '1.1rem', cursor: 'pointer' }}>🚪</span>
+            <span style={{ fontSize: '1.1rem', cursor: 'pointer', flexShrink: 0 }}>🚪</span>
           </div>
         </div>
       </aside>
