@@ -24,6 +24,8 @@ def create_app():
     from routes.alerts import alerts_bp
     from routes.dashboard import dashboard_bp
     from routes.ai import ai_bp
+    from routes.detection import detection_bp
+    from routes.orders import orders_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(valves_bp, url_prefix='/api/valves')
@@ -32,6 +34,8 @@ def create_app():
     app.register_blueprint(alerts_bp, url_prefix='/api/alerts')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
+    app.register_blueprint(detection_bp, url_prefix='/api/detection')
+    app.register_blueprint(orders_bp, url_prefix='/api/orders')
 
     @app.route('/api/health', methods=['GET'])
     def health():

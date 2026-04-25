@@ -47,8 +47,10 @@ def start_iot_simulator(app, socketio, db):
                             if virtual_soil_moisture[valve.id] < 15.0 and sm >= 15.0 and last_weather_state == 'hot':
                                 alert = Alert(user_id=valve.user_id, type='critical_health', severity='critical',
                                     message=f'☠️ Soil moisture critically low (15%) at "{valve.name}". Crop dehydration imminent!',
-                                    metadata_json=f'{{"valve_id": {valve.id}}}')
+                                    metadata_json=f'{{"valve_id": {valve.id}}}',
+                                    created_at=datetime.utcnow())
                                 db.session.add(alert)
+                                db.session.flush()
                                 socketio.emit('new_alert', {'alert': alert.to_dict()}, room=f'user_{valve.user_id}')
 
                         # Emit live data bundle to React UI
@@ -79,9 +81,11 @@ def start_iot_simulator(app, socketio, db):
                                 type=fault_type,
                                 severity=severity,
                                 message=messages[fault_type],
-                                metadata_json=f'{{"valve_id": {valve.id}, "valve_name": "{valve.name}"}}'
+                                metadata_json=f'{{"valve_id": {valve.id}, "valve_name": "{valve.name}"}}',
+                                created_at=datetime.utcnow()
                             )
                             db.session.add(alert)
+                            db.session.flush()
                             socketio.emit('new_alert', {
                                 'alert': alert.to_dict()
                             }, room=f'user_{valve.user_id}')
@@ -110,8 +114,10 @@ def start_iot_simulator(app, socketio, db):
                                     v.flow_rate = 0.0
                                     alert = Alert(user_id=v.user_id, type='empty_well', severity='critical',
                                         message=f'🛑 {well.name} ran completely dry! Emergency pump isolation triggered for "{v.name}" to prevent motor burnout.',
-                                        metadata_json=f'{{"well_id": {well.id}}}')
+                                        metadata_json=f'{{"well_id": {well.id}}}',
+                                        created_at=datetime.utcnow())
                                     db.session.add(alert)
+                                    db.session.flush()
                                     socketio.emit('new_alert', {'alert': alert.to_dict()}, room=f'user_{v.user_id}')
 
                     # Weather-based Smart Notification Logic
@@ -157,9 +163,11 @@ def start_iot_simulator(app, socketio, db):
                                         type='weather_system',
                                         severity=severity,
                                         message=msg,
-                                        metadata_json='{"source": "Open-Meteo Autonomous"}'
+                                        metadata_json='{"source": "Open-Meteo Autonomous"}',
+                                        created_at=datetime.utcnow()
                                     )
                                     db.session.add(w_alert)
+                                    db.session.flush()
                                     socketio.emit('new_alert', {'alert': w_alert.to_dict()}, room=f'user_{uid}')
 
                                 last_weather_state = current_state

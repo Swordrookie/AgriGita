@@ -70,6 +70,8 @@ export default function Layout() {
   ]
   const toolItems = [
     { to: '/ai', icon: '🌱', label: t('ai_suggestions') },
+    { to: '/detection', icon: '🔬', label: 'Disease Scan' },
+    { to: '/orders', icon: '📦', label: 'Orders' },
     { to: '/alerts', icon: '📢', label: t('alerts'), showDot: unreadCount > 0 },
     { to: '/profile', icon: '🧑‍🌾', label: t('profile') },
     { to: '/settings', icon: '⚙️', label: 'Settings' },

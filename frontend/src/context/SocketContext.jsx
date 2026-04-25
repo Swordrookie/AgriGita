@@ -3,6 +3,40 @@ import { io } from 'socket.io-client'
 import { useAuth } from './AuthContext'
 import toast from 'react-hot-toast'
 
+// Detect if running inside a Capacitor native APK
+const isNative = () => !!(window.Capacitor?.isNativePlatform?.())
+
+let notifId = 1
+
+const sendNotification = async (title, body) => {
+  if (isNative()) {
+    // ✅ NATIVE ANDROID: Real system notification via Capacitor
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications')
+      await LocalNotifications.requestPermissions()
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: notifId++,
+          title,
+          body,
+          smallIcon: 'ic_launcher',
+          sound: 'default',
+        }]
+      })
+    } catch (e) { console.warn('LocalNotification error:', e) }
+  } else {
+    // Fallback: browser Notification API for desktop testing
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') await Notification.requestPermission()
+      if (Notification.permission === 'granted') {
+        const n = new Notification(title, { body, icon: '/logo.png' })
+        n.onclick = () => { window.focus(); n.close() }
+      }
+    }
+  }
+}
+
+
 const SocketContext = createContext(null)
 
 export function SocketProvider({ children }) {
@@ -36,14 +70,20 @@ export function SocketProvider({ children }) {
     s.on('new_alert', (data) => {
       const { alert } = data;
       if (!alert) return;
-      
+
+      const title = alert.severity === 'critical' ? '🚨 AgriGita Critical Alert'
+                  : alert.severity === 'warning'  ? '⚠️ AgriGita Warning'
+                  : 'ℹ️ AgriGita Notification'
+      // Fire native Android OR browser notification
+      sendNotification(title, alert.message)
+
       if (alert.severity === 'critical') {
-        toast.error(alert.message || 'Critical system failure initiated!', { duration: 6000 });
+        toast.error(alert.message || 'Critical system failure!', { duration: 6000 });
       } else if (alert.severity === 'warning') {
-        toast.error(alert.message, { 
+        toast.error(alert.message, {
           icon: '⚠️',
-          duration: 5000, 
-          style: { border: '1px solid orange', color: 'orange' } 
+          duration: 5000,
+          style: { border: '1px solid orange', color: 'orange' }
         });
       } else {
         toast.success(alert.message, { icon: 'ℹ️', duration: 4000 });

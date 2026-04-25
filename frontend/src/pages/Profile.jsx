@@ -119,6 +119,18 @@ export default function Profile() {
           </div>
 
           <div className="form-group">
+            <label className="form-label">🌐 Interface Language</label>
+            <select className="form-input" value={form.language} onChange={e => { setForm(p => ({ ...p, language: e.target.value })); changeLanguage(e.target.value) }}>
+              <option value="en">English</option>
+              <option value="hi">हिंदी (Hindi)</option>
+              <option value="mr">मराठी (Marathi)</option>
+              <option value="ta">தமிழ் (Tamil)</option>
+              <option value="te">తెలుగు (Telugu)</option>
+              <option value="kn">ಕನ್ನಡ (Kannada)</option>
+            </select>
+          </div>
+
+          <div className="form-group">
             <label className="form-label">Full Name</label>
             <input type="text" className="form-input" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required />
           </div>
@@ -127,23 +139,12 @@ export default function Profile() {
             <input type="email" className="form-input" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required />
           </div>
           <div className="form-group">
-            <label className="form-label">Farm / Land Details</label>
-            <textarea className="form-input" rows="3" value={form.land_details} onChange={e => setForm(p => ({ ...p, land_details: e.target.value }))} placeholder="E.g. 5 Acres, Loamy Soil, North Zone..." />
-          </div>
-          <div className="form-group">
             <label className="form-label">Phone Number</label>
             <input type="tel" className="form-input" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
           </div>
           <div className="form-group">
-            <label className="form-label">Interface Language</label>
-            <select className="form-input" value={form.language} onChange={e => setForm(p => ({ ...p, language: e.target.value }))}>
-              <option value="en">English</option>
-              <option value="hi">हिंदी (Hindi)</option>
-              <option value="mr">मराठी (Marathi)</option>
-              <option value="ta">தமிழ் (Tamil)</option>
-              <option value="te">తెలుగు (Telugu)</option>
-              <option value="kn">ಕನ್ನಡ (Kannada)</option>
-            </select>
+            <label className="form-label">Farm / Land Details</label>
+            <textarea className="form-input" rows="3" value={form.land_details} onChange={e => setForm(p => ({ ...p, land_details: e.target.value }))} placeholder="E.g. 5 Acres, Loamy Soil, North Zone..." />
           </div>
 
           <div style={{ marginTop: '24px' }}>

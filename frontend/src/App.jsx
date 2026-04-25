@@ -14,6 +14,8 @@ import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import LoginSuccess from './pages/LoginSuccess'
 import AdminDashboard from './pages/Admin'
+import Detection from './pages/Detection'
+import Orders from './pages/Orders'
 import { Toaster } from 'react-hot-toast'
 
 function ProtectedRoute({ children }) {
@@ -49,6 +51,8 @@ export default function App() {
           <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
           <Route path="admin" element={<AdminDashboard />} />
+          <Route path="detection" element={<Detection />} />
+          <Route path="orders" element={<Orders />} />
         </Route>
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

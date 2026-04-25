@@ -2,26 +2,54 @@ import { useState, useEffect } from 'react'
 import { alertAPI } from '../api/services'
 import { useSocket } from '../context/SocketContext'
 
+const SEV_CONFIG = {
+  critical: { color: '#ef4444', bg: '#fef2f2', darkBg: 'rgba(239,68,68,0.1)', emoji: '🔴', label: 'Critical' },
+  warning:  { color: '#f59e0b', bg: '#fffbeb', darkBg: 'rgba(245,158,11,0.1)', emoji: '🟡', label: 'Warning' },
+  info:     { color: '#3b82f6', bg: '#eff6ff', darkBg: 'rgba(59,130,246,0.1)', emoji: '🔵', label: 'Info' },
+}
+
+const TYPE_ICON = {
+  valve_failure:   '🔧',
+  pipeline_damage: '〰️',
+  low_pressure:    '📉',
+  low_water:       '💧',
+  system:          '⚙️',
+}
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return 'Just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d === 1) return 'Yesterday'
+  return `${d}d ago`
+}
+
+function groupByDate(alerts) {
+  const groups = {}
+  alerts.forEach(a => {
+    const d = new Date(a.created_at)
+    const now = new Date()
+    let label
+    if (d.toDateString() === now.toDateString()) label = 'Today'
+    else {
+      const yest = new Date(now); yest.setDate(now.getDate() - 1)
+      label = d.toDateString() === yest.toDateString() ? 'Yesterday' : d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+    }
+    if (!groups[label]) groups[label] = []
+    groups[label].push(a)
+  })
+  return groups
+}
+
 export default function Alerts() {
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const { socket } = useSocket()
-
-  const exportToCSV = () => {
-    if (!alerts.length) return
-    const headers = ['ID', 'Severity', 'Type', 'Message', 'Read', 'Date']
-    const dataRows = alerts.map(a => [a.id, a.severity, a.type, `"${a.message.replace(/"/g, '""')}"`, a.is_read, a.created_at])
-    const csvContent = [headers, ...dataRows].map(e => e.join(",")).join("\n")
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.setAttribute("href", url)
-    link.setAttribute("download", `agri_alerts_export_${new Date().toISOString().split('T')[0]}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
   const fetchAlerts = async () => {
     try {
@@ -44,21 +72,33 @@ export default function Alerts() {
     try {
       await alertAPI.markRead(id)
       setAlerts(prev => prev.map(a => a.id === id ? { ...a, is_read: true } : a))
-    } catch (err) { console.error(err) }
+    } catch (err) {}
   }
 
   const handleMarkAllRead = async () => {
     try {
       await alertAPI.markAllRead()
       setAlerts(prev => prev.map(a => ({ ...a, is_read: true })))
-    } catch (err) { console.error(err) }
+    } catch (err) {}
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, e) => {
+    e.stopPropagation()
     try {
       await alertAPI.delete(id)
       setAlerts(prev => prev.filter(a => a.id !== id))
-    } catch (err) { console.error(err) }
+    } catch (err) {}
+  }
+
+  const exportToCSV = () => {
+    if (!alerts.length) return
+    const rows = [['ID','Severity','Type','Message','Read','Date'],
+      ...alerts.map(a => [a.id, a.severity, a.type, `"${a.message.replace(/"/g,'""')}"`, a.is_read, a.created_at])]
+    const csv = rows.map(r => r.join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    Object.assign(document.createElement('a'), {
+      href: url, download: `alerts_${new Date().toISOString().split('T')[0]}.csv`
+    }).click()
   }
 
   const filtered = alerts.filter(a => {
@@ -69,101 +109,156 @@ export default function Alerts() {
   })
 
   const unreadCount = alerts.filter(a => !a.is_read).length
-
-  const severityIcon = (s) => s === 'critical' ? '🔴' : s === 'warning' ? '🟡' : '🔵'
-  const typeIcon = (t) => {
-    const icons = { valve_failure: '⚠️', pipeline_damage: '🔧', low_pressure: '📉', system: '🖥️', low_water: '💧' }
-    return icons[t] || '📢'
-  }
-
-  const timeAgo = (dateStr) => {
-    const diff = Date.now() - new Date(dateStr).getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 60) return `${mins}m ago`
-    const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs}h ago`
-    return `${Math.floor(hrs / 24)}d ago`
-  }
+  const groups = groupByDate(filtered)
 
   if (loading) return <div className="loading-container"><div className="loading-spinner" /></div>
 
   return (
-    <div className="fade-in">
-      <div className="page-header">
+    <div className="fade-in" style={{ maxWidth: '680px', margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', gap: '12px' }}>
         <div>
-          <h1 className="page-title">Alerts & Notifications</h1>
-          <p className="page-subtitle">{unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}</p>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: '700', margin: 0 }}>Notifications</h1>
+          {unreadCount > 0
+            ? <p style={{ fontSize: '0.82rem', color: 'var(--accent-blue)', marginTop: '2px', fontWeight: '500' }}>{unreadCount} new</p>
+            : <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>All caught up</p>
+          }
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-outline" onClick={exportToCSV}>📥 Export Logs (CSV)</button>
+        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
           {unreadCount > 0 && (
-            <button className="btn btn-primary" onClick={handleMarkAllRead} id="mark-all-read-btn">✓ Mark All Read</button>
+            <button onClick={handleMarkAllRead}
+              style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', padding: '4px 0' }}>
+              Mark all read
+            </button>
           )}
         </div>
       </div>
 
-      {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+      {/* Filter chips — scrollable */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px', WebkitOverflowScrolling: 'touch' }}>
         {[
-          { key: 'all', label: `All (${alerts.length})` },
-          { key: 'unread', label: `Unread (${unreadCount})` },
+          { key: 'all',      label: `All` },
+          { key: 'unread',   label: `Unread${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
           { key: 'critical', label: '🔴 Critical' },
-          { key: 'warning', label: '🟡 Warning' },
+          { key: 'warning',  label: '🟡 Warning' },
         ].map(tab => (
-          <button key={tab.key}
-            className={`btn btn-sm ${filter === tab.key ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setFilter(tab.key)}>
+          <button key={tab.key} onClick={() => setFilter(tab.key)}
+            style={{
+              whiteSpace: 'nowrap', flexShrink: 0,
+              padding: '6px 14px', borderRadius: '20px', border: '1px solid',
+              fontSize: '0.8rem', fontWeight: '500', cursor: 'pointer',
+              transition: 'all 0.15s',
+              background: filter === tab.key ? 'var(--accent-blue)' : 'transparent',
+              borderColor: filter === tab.key ? 'var(--accent-blue)' : 'var(--border-color)',
+              color: filter === tab.key ? 'white' : 'var(--text-secondary)',
+            }}>
             {tab.label}
           </button>
         ))}
+
+        {/* Export — right-aligned chip */}
+        <button onClick={exportToCSV}
+          style={{
+            whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 'auto',
+            padding: '6px 14px', borderRadius: '20px',
+            border: '1px solid var(--border-color)', background: 'transparent',
+            fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer'
+          }}>
+          ↓ Export
+        </button>
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="empty-state">
-          <div className="icon">✅</div>
-          <h3>No Alerts</h3>
-          <p>Your system is running smoothly. No alerts to display.</p>
-        </div>
-      ) : (
-        <div className="alert-list">
-          {filtered.map(alert => (
-            <div key={alert.id}
-              className={`alert-item ${alert.severity} ${!alert.is_read ? 'unread' : ''}`}
-              onClick={() => !alert.is_read && handleMarkRead(alert.id)}>
-              <div className={`alert-icon ${alert.severity}`}>
-                {typeIcon(alert.type)}
-              </div>
-              <div className="alert-content" style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px',
-                    color: alert.severity === 'critical' ? 'var(--accent-red)' : alert.severity === 'warning' ? 'var(--accent-amber)' : 'var(--accent-blue)',
-                    padding: '2px 8px', borderRadius: '10px',
-                    background: alert.severity === 'critical' ? 'var(--accent-red-glow)' : alert.severity === 'warning' ? 'var(--accent-amber-glow)' : 'var(--accent-blue-glow)' }}>
-                    {severityIcon(alert.severity)} {alert.severity}
-                  </span>
-                  {!alert.is_read && (
-                    <span style={{ width: '8px', height: '8px', background: 'var(--accent-blue)', borderRadius: '50%', flexShrink: 0 }} />
-                  )}
-                </div>
-                <div className="alert-message">{alert.message}</div>
-                <div className="alert-time">{timeAgo(alert.created_at)} · {new Date(alert.created_at).toLocaleString()}</div>
-              </div>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <a href={`https://wa.me/?text=${encodeURIComponent(`*Farm Alert: ${alert.severity.toUpperCase()}*\n_${alert.message}_\nTime: ${new Date(alert.created_at).toLocaleString()}`)}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }} title="Send via WhatsApp">
-                  <button style={{ background: '#25D366', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.85rem', padding: '4px 8px', borderRadius: '4px', flexShrink: 0, transition: 'opacity 0.2s' }}>
-                    🟢 WhatsApp
-                  </button>
-                </a>
-                <button onClick={(e) => { e.stopPropagation(); handleDelete(alert.id) }}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem', padding: '4px', flexShrink: 0, opacity: 0.5, transition: 'opacity 0.2s' }}
-                  onMouseEnter={e => e.target.style.opacity = 1} onMouseLeave={e => e.target.style.opacity = 0.5}>
-                  🗑️
-                </button>
-              </div>
-            </div>
-          ))}
+      {/* Empty state */}
+      {filtered.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🔔</div>
+          <p style={{ fontWeight: '600', fontSize: '1rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>No notifications</p>
+          <p style={{ fontSize: '0.85rem' }}>You're all caught up.</p>
         </div>
       )}
+
+      {/* Grouped notification list */}
+      {Object.entries(groups).map(([date, items]) => (
+        <div key={date} style={{ marginBottom: '24px' }}>
+          {/* Date header */}
+          <div style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)', marginBottom: '10px', paddingLeft: '2px' }}>
+            {date}
+          </div>
+
+          {/* Cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {items.map((alert, idx) => {
+              const cfg = SEV_CONFIG[alert.severity] || SEV_CONFIG.info
+              const isFirst = idx === 0
+              const isLast = idx === items.length - 1
+              const borderRadius = `${isFirst ? '12px 12px' : '4px 4px'} ${isLast ? '12px 12px' : '4px 4px'}`
+
+              return (
+                <div key={alert.id}
+                  onClick={() => !alert.is_read && handleMarkRead(alert.id)}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '12px',
+                    padding: '12px 14px',
+                    background: !alert.is_read ? 'var(--bg-card)' : 'transparent',
+                    borderRadius,
+                    cursor: !alert.is_read ? 'pointer' : 'default',
+                    transition: 'background 0.15s',
+                    position: 'relative',
+                    borderLeft: !alert.is_read ? `3px solid ${cfg.color}` : '3px solid transparent',
+                  }}
+                >
+                  {/* App icon circle */}
+                  <div style={{
+                    width: '44px', height: '44px', borderRadius: '12px',
+                    background: cfg.darkBg,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '1.3rem', flexShrink: 0, marginTop: '1px'
+                  }}>
+                    {TYPE_ICON[alert.type] || '📢'}
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '2px' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: '700', color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                        {cfg.label}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                        {timeAgo(alert.created_at)}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-primary)', lineHeight: '1.45', wordBreak: 'break-word' }}>
+                      {alert.message}
+                    </p>
+
+                    {/* Actions row */}
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px', alignItems: 'center' }}>
+                      <a href={`https://wa.me/?text=${encodeURIComponent(`*${cfg.label} Alert*\n${alert.message}\n${new Date(alert.created_at).toLocaleString()}`)}`}
+                        target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                        style={{
+                          fontSize: '0.78rem', fontWeight: '600', color: '#25D366',
+                          textDecoration: 'none',
+                          display: 'inline-flex', alignItems: 'center', gap: '4px'
+                        }}>
+                        📤 Share on WhatsApp
+                      </a>
+                      <button onClick={(e) => handleDelete(alert.id, e)}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.76rem', cursor: 'pointer', padding: '3px 6px' }}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Unread dot */}
+                  {!alert.is_read && (
+                    <div style={{ width: '8px', height: '8px', background: 'var(--accent-blue)', borderRadius: '50%', flexShrink: 0, marginTop: '6px' }} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
