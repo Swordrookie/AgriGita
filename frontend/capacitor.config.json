@@ -1,5 +1,8 @@
 {
   "appId": "com.agrigita.app",
   "appName": "AgriGita",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "cleartext": true
+  }
 }
