@@ -146,7 +146,15 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
+    import os
     from services.iot_simulator import start_iot_simulator
     start_iot_simulator(app, socketio, db)
-    print('🚀 AgriGita API running on http://localhost:5000')
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    print(f'🚀 AgriGita API running on http://0.0.0.0:{port}')
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+else:
+    # Running via gunicorn on Railway — start IoT simulator as background thread
+    import threading
+    from services.iot_simulator import start_iot_simulator
+    t = threading.Thread(target=start_iot_simulator, args=(app, socketio, db), daemon=True)
+    t.start()
