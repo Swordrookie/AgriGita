@@ -15,6 +15,12 @@ export default function Layout() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [criticalAlert, setCriticalAlert] = useState(null)
+  const [isLightMode, setIsLightMode] = useState(false)
+
+  const toggleTheme = () => {
+    setIsLightMode(!isLightMode)
+    document.documentElement.setAttribute('data-theme', !isLightMode ? 'light' : 'dark')
+  }
 
   useEffect(() => {
     alertAPI.getUnreadCount().then(r => setUnreadCount(r.data.unread_count)).catch(() => {})
@@ -126,10 +132,14 @@ export default function Layout() {
 
       <div className="main-content">
         <header className="header">
-          <button className="btn btn-icon btn-outline" onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{ display: 'none' }} id="menu-toggle">☰</button>
+          <button className="btn btn-icon btn-outline" onClick={() => setSidebarOpen(!sidebarOpen)} id="menu-toggle">
+            ☰
+          </button>
           <div className="header-title">AgriGita: AI-Powered Smart Agriculture</div>
-          <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div className="notification-badge" onClick={toggleTheme} title="Toggle Theme" style={{ fontSize: '1.2rem' }}>
+              {isLightMode ? '🌙' : '☀️'}
+            </div>
             <div className="notification-badge" onClick={() => navigate('/alerts')} id="header-alerts">
               🔔
               {unreadCount > 0 && <span className="count">{unreadCount > 9 ? '9+' : unreadCount}</span>}
